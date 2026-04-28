@@ -4,6 +4,9 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 const contentTypeTextPlain = "text/plain"
@@ -18,19 +21,27 @@ type URLHandler struct {
 	baseURL string
 }
 
-func New(svc URLService, baseURL string) *URLHandler {
-	return &URLHandler{svc: svc, baseURL: baseURL}
+func New(svc URLService, baseURL string) http.Handler {
+	h := &URLHandler{
+		svc:     svc,
+		baseURL: baseURL,
+	}
+
+	r := chi.NewRouter()
+
+	r.Use(middleware.Recoverer)
+
+	r.NotFound(h.badRequestHandler)
+	r.MethodNotAllowed(h.badRequestHandler)
+
+	r.Post("/", h.handlePost)
+	r.Get("/{id}", h.handleGet)
+
+	return r
 }
 
-func (h *URLHandler) ServeHTTP(rw http.ResponseWriter, rq *http.Request) {
-	switch rq.Method {
-	case http.MethodPost:
-		h.handlePost(rw, rq)
-	case http.MethodGet:
-		h.handleGet(rw, rq)
-	default:
-		rw.WriteHeader(http.StatusBadRequest)
-	}
+func (h *URLHandler) badRequestHandler(rw http.ResponseWriter, rq *http.Request) {
+	rw.WriteHeader(http.StatusBadRequest)
 }
 
 func (h *URLHandler) handlePost(rw http.ResponseWriter, rq *http.Request) {
@@ -63,12 +74,7 @@ func (h *URLHandler) handlePost(rw http.ResponseWriter, rq *http.Request) {
 }
 
 func (h *URLHandler) handleGet(rw http.ResponseWriter, rq *http.Request) {
-	if len(rq.URL.Path) <= 1 {
-		rw.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	shortID := rq.URL.Path[1:]
+	shortID := chi.URLParam(rq, "id")
 
 	origURL := h.svc.GetOrigURL(shortID)
 	if origURL == "" {
