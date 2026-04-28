@@ -1,0 +1,147 @@
+//go:build !integration
+
+package handler
+
+import (
+	"bytes"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+)
+
+const baseURL = "http://localhost:8080/"
+
+const (
+	methodGetOrCreate = "GetOrCreate"
+	methodGetOrigURL  = "GetOrigURL"
+)
+
+type mockURLService struct {
+	mock.Mock
+}
+
+var _ URLService = (*mockURLService)(nil)
+
+func (m *mockURLService) GetOrCreate(origURL string) string {
+	return m.Called(origURL).String(0)
+}
+
+func (m *mockURLService) GetOrigURL(shortID string) string {
+	return m.Called(shortID).String(0)
+}
+
+func TestHandler(t *testing.T) {
+	tests := []struct {
+		name        string
+		method      string
+		path        string
+		contentType string
+		body        string
+		setupMock   func(m *mockURLService)
+		wantStatus  int
+		wantBody    string
+	}{
+		{
+			name:        "POST success",
+			method:      http.MethodPost,
+			path:        "/",
+			contentType: "text/plain",
+			body:        "http://example.com",
+			setupMock: func(m *mockURLService) {
+				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   baseURL + "EwHXdJfB",
+		},
+		{
+			name:        "POST success (duplicate)",
+			method:      http.MethodPost,
+			path:        "/",
+			contentType: "text/plain",
+			body:        "http://example.com",
+			setupMock: func(m *mockURLService) {
+				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   baseURL + "EwHXdJfB",
+		},
+		{
+			name:       "POST failure - no content-type",
+			method:     http.MethodPost,
+			path:       "/",
+			body:       "http://example.com",
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:        "POST failure - empty body",
+			method:      http.MethodPost,
+			path:        "/",
+			contentType: "text/plain",
+			body:        "",
+			wantStatus:  http.StatusBadRequest,
+		},
+		{
+			name:   "GET failure - non-existent short URL",
+			method: http.MethodGet,
+			path:   "/nonexistent",
+			setupMock: func(m *mockURLService) {
+				m.On(methodGetOrigURL, "nonexistent").Return("").Once()
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := new(mockURLService)
+			if tt.setupMock != nil {
+				tt.setupMock(svc)
+			}
+
+			req := httptest.NewRequest(tt.method, tt.path, bytes.NewBufferString(tt.body))
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+			rr := httptest.NewRecorder()
+
+			New(svc, baseURL).ServeHTTP(rr, req)
+
+			res := rr.Result()
+			defer res.Body.Close()
+
+			assert.Equal(t, tt.wantStatus, res.StatusCode)
+			if tt.wantBody != "" {
+				body, err := io.ReadAll(res.Body)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantBody, string(body))
+			}
+			svc.AssertExpectations(t)
+		})
+	}
+}
+
+func TestGetExistingURL(t *testing.T) {
+	const (
+		origURL = "http://example.com"
+		shortID = "EwHXdJfB"
+	)
+
+	svc := new(mockURLService)
+	svc.On(methodGetOrigURL, shortID).Return(origURL).Once()
+
+	req := httptest.NewRequest(http.MethodGet, "/"+shortID, nil)
+	rr := httptest.NewRecorder()
+
+	New(svc, baseURL).ServeHTTP(rr, req)
+
+	res := rr.Result()
+	defer res.Body.Close()
+
+	assert.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+	assert.Equal(t, origURL, res.Header.Get("Location"))
+	svc.AssertExpectations(t)
+}
