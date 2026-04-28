@@ -9,11 +9,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/IgorNB/shortener/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
-
-const baseURL = "http://localhost:8080/"
 
 const (
 	methodGetOrCreate = "GetOrCreate"
@@ -35,6 +34,7 @@ func (m *mockURLService) GetOrigURL(shortID string) string {
 }
 
 func TestHandler(t *testing.T) {
+	config.Parse()
 	tests := []struct {
 		name        string
 		method      string
@@ -55,7 +55,7 @@ func TestHandler(t *testing.T) {
 				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   baseURL + "EwHXdJfB",
+			wantBody:   "EwHXdJfB",
 		},
 		{
 			name:        "POST success (duplicate)",
@@ -67,7 +67,7 @@ func TestHandler(t *testing.T) {
 				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   baseURL + "EwHXdJfB",
+			wantBody:   "EwHXdJfB",
 		},
 		{
 			name:       "POST failure - no content-type",
@@ -108,7 +108,7 @@ func TestHandler(t *testing.T) {
 			}
 			rr := httptest.NewRecorder()
 
-			New(svc, baseURL).ServeHTTP(rr, req)
+			New(svc, config.BaseURL).ServeHTTP(rr, req)
 
 			res := rr.Result()
 			defer res.Body.Close()
@@ -117,7 +117,7 @@ func TestHandler(t *testing.T) {
 			if tt.wantBody != "" {
 				body, err := io.ReadAll(res.Body)
 				assert.NoError(t, err)
-				assert.Equal(t, tt.wantBody, string(body))
+				assert.Equal(t, config.BaseURL+tt.wantBody, string(body))
 			}
 			svc.AssertExpectations(t)
 		})
@@ -125,6 +125,7 @@ func TestHandler(t *testing.T) {
 }
 
 func TestGetExistingURL(t *testing.T) {
+	config.Parse()
 	const (
 		origURL = "http://example.com"
 		shortID = "EwHXdJfB"
@@ -136,7 +137,7 @@ func TestGetExistingURL(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/"+shortID, nil)
 	rr := httptest.NewRecorder()
 
-	New(svc, baseURL).ServeHTTP(rr, req)
+	New(svc, config.BaseURL).ServeHTTP(rr, req)
 
 	res := rr.Result()
 	defer res.Body.Close()

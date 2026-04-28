@@ -70,7 +70,9 @@ func (h *URLHandler) handlePost(rw http.ResponseWriter, rq *http.Request) {
 
 	rw.Header().Set("Content-Type", contentTypeTextPlain)
 	rw.WriteHeader(http.StatusCreated)
-	_, _ = rw.Write([]byte(h.baseURL + shortID))
+
+	resURL := strings.TrimSuffix(h.baseURL, "/") + "/" + shortID
+	_, _ = rw.Write([]byte(resURL))
 }
 
 func (h *URLHandler) handleGet(rw http.ResponseWriter, rq *http.Request) {

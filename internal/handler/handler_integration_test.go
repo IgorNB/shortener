@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/IgorNB/shortener/internal/config"
 	"github.com/IgorNB/shortener/internal/repository"
 	"github.com/IgorNB/shortener/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -32,6 +33,7 @@ type TestCase struct {
 }
 
 func TestHandler(t *testing.T) {
+	config.Parse()
 	// Success cases first, then failures
 	tests := []TestCase{
 		{
@@ -105,10 +107,9 @@ func TestHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-
 			repo := repository.New()
 			svc := service.New(repo)
-			handler := New(svc, "http://localhost:8080/")
+			handler := New(svc, config.BaseURL)
 
 			// подготовка данных
 			for _, b := range test.before {
@@ -154,9 +155,10 @@ func TestHandler(t *testing.T) {
 }
 
 func TestGetExistingURL(t *testing.T) {
+	config.Parse()
 	repo := repository.New()
 	svc := service.New(repo)
-	handler := New(svc, "http://localhost:8080/")
+	handler := New(svc, config.BaseURL)
 
 	postReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("http://example.com"))
 	postReq.Header.Set("Content-Type", "text/plain")
