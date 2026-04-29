@@ -10,28 +10,14 @@ import (
 	"testing"
 
 	"github.com/IgorNB/shortener/internal/config"
+	"github.com/IgorNB/shortener/internal/handler/mocks"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 const (
 	methodGetOrCreate = "GetOrCreate"
 	methodGetOrigURL  = "GetOrigURL"
 )
-
-type mockURLService struct {
-	mock.Mock
-}
-
-var _ URLService = (*mockURLService)(nil)
-
-func (m *mockURLService) GetOrCreate(origURL string) string {
-	return m.Called(origURL).String(0)
-}
-
-func (m *mockURLService) GetOrigURL(shortID string) string {
-	return m.Called(shortID).String(0)
-}
 
 func TestHandler(t *testing.T) {
 	config.Parse()
@@ -41,7 +27,7 @@ func TestHandler(t *testing.T) {
 		path        string
 		contentType string
 		body        string
-		setupMock   func(m *mockURLService)
+		setupMock   func(m *mocks.URLService)
 		wantStatus  int
 		wantBody    string
 	}{
@@ -51,7 +37,7 @@ func TestHandler(t *testing.T) {
 			path:        "/",
 			contentType: "text/plain",
 			body:        "http://example.com",
-			setupMock: func(m *mockURLService) {
+			setupMock: func(m *mocks.URLService) {
 				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
@@ -63,7 +49,7 @@ func TestHandler(t *testing.T) {
 			path:        "/",
 			contentType: "text/plain",
 			body:        "http://example.com",
-			setupMock: func(m *mockURLService) {
+			setupMock: func(m *mocks.URLService) {
 				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
@@ -88,7 +74,7 @@ func TestHandler(t *testing.T) {
 			name:   "GET failure - non-existent short URL",
 			method: http.MethodGet,
 			path:   "/nonexistent",
-			setupMock: func(m *mockURLService) {
+			setupMock: func(m *mocks.URLService) {
 				m.On(methodGetOrigURL, "nonexistent").Return("").Once()
 			},
 			wantStatus: http.StatusBadRequest,
@@ -97,7 +83,7 @@ func TestHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc := new(mockURLService)
+			svc := new(mocks.URLService)
 			if tt.setupMock != nil {
 				tt.setupMock(svc)
 			}
@@ -131,7 +117,7 @@ func TestGetExistingURL(t *testing.T) {
 		shortID = "EwHXdJfB"
 	)
 
-	svc := new(mockURLService)
+	svc := new(mocks.URLService)
 	svc.On(methodGetOrigURL, shortID).Return(origURL).Once()
 
 	req := httptest.NewRequest(http.MethodGet, "/"+shortID, nil)

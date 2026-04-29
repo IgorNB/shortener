@@ -1,6 +1,3 @@
-//go:build integration
-// +build integration
-
 package handler
 
 import (
@@ -32,7 +29,7 @@ type TestCase struct {
 	assertBody   func(body string)
 }
 
-func TestHandler(t *testing.T) {
+func TestIntegrationHandler(t *testing.T) {
 	config.Parse()
 	// Success cases first, then failures
 	tests := []TestCase{
@@ -154,7 +151,7 @@ func TestHandler(t *testing.T) {
 	}
 }
 
-func TestGetExistingURL(t *testing.T) {
+func TestIntegrationGetExistingURL(t *testing.T) {
 	config.Parse()
 	repo := repository.New()
 	svc := service.New(repo)
@@ -170,7 +167,10 @@ func TestGetExistingURL(t *testing.T) {
 
 	assert.Equal(t, http.StatusCreated, postResp.StatusCode)
 
-	shortURLBytes, _ := io.ReadAll(postResp.Body)
+	shortURLBytes, err := io.ReadAll(postResp.Body)
+	if err != nil {
+		panic(err)
+	}
 	shortURL := string(shortURLBytes)
 	parts := strings.Split(strings.TrimRight(shortURL, "/"), "/")
 	shortID := parts[len(parts)-1]

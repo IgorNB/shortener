@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/IgorNB/shortener/internal/config"
@@ -17,6 +18,6 @@ func main() {
 	h := handler.New(svc, config.BaseURL)
 
 	if err := http.ListenAndServe(config.ServerAddress, h); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }

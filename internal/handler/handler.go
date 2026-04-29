@@ -3,6 +3,7 @@ package handler
 import (
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -11,6 +12,7 @@ import (
 
 const contentTypeTextPlain = "text/plain"
 
+//go:generate mockery --name URLService --output ./mocks --outpkg mocks
 type URLService interface {
 	GetOrCreate(origURL string) string
 	GetOrigURL(shortID string) string
@@ -68,10 +70,14 @@ func (h *URLHandler) handlePost(rw http.ResponseWriter, rq *http.Request) {
 		return
 	}
 
+	resURL, err := url.JoinPath(h.baseURL, shortID)
+	if err != nil {
+		rw.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	rw.Header().Set("Content-Type", contentTypeTextPlain)
 	rw.WriteHeader(http.StatusCreated)
-
-	resURL := strings.TrimSuffix(h.baseURL, "/") + "/" + shortID
 	_, _ = rw.Write([]byte(resURL))
 }
 

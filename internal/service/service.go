@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 )
 
+//go:generate mockery --name Repository --output ./mocks --outpkg mocks
 type Repository interface {
 	GetShortByOrig(orig string) string
 	GetOrigByShort(short string) string
-	SaveIfNotTaken(orig, short string) (string, bool)
+	SaveIfNotTaken(orig, short string) (string, error)
 }
 
 type URLService struct {
@@ -25,10 +26,11 @@ func (s *URLService) GetOrCreate(origURL string) string {
 	}
 
 	for range 10 {
-		short, ok := s.repo.SaveIfNotTaken(origURL, randomString(8))
-		if ok {
-			return short
+		short, err := s.repo.SaveIfNotTaken(origURL, randomString(8))
+		if err != nil {
+			continue
 		}
+		return short
 	}
 	return ""
 }

@@ -10,13 +10,10 @@ var (
 	BaseURL       string
 )
 
-func init() {
-	flag.StringVar(&ServerAddress, "a", "localhost:8080", "HTTP server address")
-	flag.StringVar(&BaseURL, "b", "http://localhost:8080/", "Base URL for short links")
-}
-
 func Parse() {
 	if !flag.Parsed() {
+		flag.StringVar(&ServerAddress, "a", "localhost:8080", "HTTP server address")
+		flag.StringVar(&BaseURL, "b", "http://localhost:8080/", "Base URL for short links")
 		flag.Parse()
 	}
 	if BaseURL != "" {
