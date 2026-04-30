@@ -3,6 +3,7 @@ package handler
 import (
 	"bytes"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -169,7 +170,7 @@ func TestIntegrationGetExistingURL(t *testing.T) {
 
 	shortURLBytes, err := io.ReadAll(postResp.Body)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	shortURL := string(shortURLBytes)
 	parts := strings.Split(strings.TrimRight(shortURL, "/"), "/")
