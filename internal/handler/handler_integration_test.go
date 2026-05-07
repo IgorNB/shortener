@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -101,6 +102,63 @@ func TestIntegrationHandler(t *testing.T) {
 			assertStatus: http.StatusBadRequest,
 			assertBody:   nil,
 		},
+		{
+			name:   "POST /api/shorten success",
+			before: []Step{},
+			step: Step{
+				method:      http.MethodPost,
+				relativeUrl: "/api/shorten",
+				contentType: "application/json",
+				body:        `{"url":"http://example.com"}`,
+			},
+			assertStatus: http.StatusCreated,
+			assertBody: func(body string) {
+				assert.NotNil(t, body)
+			},
+		},
+		{
+			name: "POST /api/shorten success (duplicate)",
+			before: []Step{
+				{
+					method:      http.MethodPost,
+					relativeUrl: "/api/shorten",
+					contentType: "application/json",
+					body:        `{"url":"http://example.com"}`,
+				},
+			},
+			step: Step{
+				method:      http.MethodPost,
+				relativeUrl: "/api/shorten",
+				contentType: "application/json",
+				body:        `{"url":"http://example.com"}`,
+			},
+			assertStatus: http.StatusCreated,
+			assertBody: func(body string) {
+				assert.NotNil(t, body)
+			},
+		},
+		{
+			name: "POST /api/shorten failure - no content-type",
+			step: Step{
+				method:      http.MethodPost,
+				relativeUrl: "/api/shorten",
+				contentType: "",
+				body:        `{"url":"http://example.com"}`,
+			},
+			assertStatus: http.StatusBadRequest,
+			assertBody:   nil,
+		},
+		{
+			name: "POST /api/shorten failure - empty body",
+			step: Step{
+				method:      http.MethodPost,
+				relativeUrl: "/api/shorten",
+				contentType: "application/json",
+				body:        "",
+			},
+			assertStatus: http.StatusBadRequest,
+			assertBody:   nil,
+		},
 	}
 
 	for _, test := range tests {
@@ -186,4 +244,47 @@ func TestIntegrationGetExistingURL(t *testing.T) {
 
 	assert.Equal(t, http.StatusTemporaryRedirect, getResp.StatusCode)
 	assert.Equal(t, "http://example.com", getResp.Header.Get("Location"))
+}
+
+func TestIntegrationGetExistingURLViaAPI(t *testing.T) {
+	config.Parse()
+	logger.Init(config.LogLevel)
+	repo := repository.New()
+	svc := service.New(repo)
+	handler := New(svc, config.BaseURL)
+
+	origURL := "http://example.com"
+	reqBody := `{"url":"` + origURL + `"}`
+	postReq := httptest.NewRequest(http.MethodPost, "/api/shorten", bytes.NewBufferString(reqBody))
+	postReq.Header.Set("Content-Type", "application/json")
+	postRec := httptest.NewRecorder()
+	handler.ServeHTTP(postRec, postReq)
+
+	postResp := postRec.Result()
+	defer postResp.Body.Close()
+
+	assert.Equal(t, http.StatusCreated, postResp.StatusCode)
+	assert.Equal(t, "application/json", postResp.Header.Get("Content-Type"))
+
+	var rs struct {
+		Result string `json:"result"`
+	}
+	if err := json.NewDecoder(postResp.Body).Decode(&rs); err != nil {
+		t.Fatal(err)
+	}
+	assert.NotEmpty(t, rs.Result)
+	shortURL := rs.Result
+
+	parts := strings.Split(strings.TrimRight(shortURL, "/"), "/")
+	shortID := parts[len(parts)-1]
+
+	getReq := httptest.NewRequest(http.MethodGet, "/"+shortID, nil)
+	getRec := httptest.NewRecorder()
+	handler.ServeHTTP(getRec, getReq)
+
+	getResp := getRec.Result()
+	defer getResp.Body.Close()
+
+	assert.Equal(t, http.StatusTemporaryRedirect, getResp.StatusCode)
+	assert.Equal(t, origURL, getResp.Header.Get("Location"))
 }

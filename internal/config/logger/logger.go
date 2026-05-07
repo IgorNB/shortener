@@ -66,10 +66,10 @@ func (w *loggingResponseWriter) Write(b []byte) (int, error) {
 	return size, err
 }
 
-func (r *loggingResponseWriter) WriteHeader(statusCode int) {
+func (w *loggingResponseWriter) WriteHeader(statusCode int) {
 	//ResponseWriter.WriteHeader ignores second statusCode writes, so we must do the same
-	if r.status == 0 {
-		r.status = statusCode
+	if w.status == 0 {
+		w.status = statusCode
 	}
-	r.ResponseWriter.WriteHeader(statusCode)
+	w.ResponseWriter.WriteHeader(statusCode)
 }
