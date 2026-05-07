@@ -3,13 +3,13 @@ package handler
 import (
 	"bytes"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/IgorNB/shortener/internal/config"
+	"github.com/IgorNB/shortener/internal/config/logger"
 	"github.com/IgorNB/shortener/internal/repository"
 	"github.com/IgorNB/shortener/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -154,6 +154,7 @@ func TestIntegrationHandler(t *testing.T) {
 
 func TestIntegrationGetExistingURL(t *testing.T) {
 	config.Parse()
+	logger.Init(config.LogLevel)
 	repo := repository.New()
 	svc := service.New(repo)
 	handler := New(svc, config.BaseURL)
@@ -170,7 +171,7 @@ func TestIntegrationGetExistingURL(t *testing.T) {
 
 	shortURLBytes, err := io.ReadAll(postResp.Body)
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Fatal().Err(err).Msg("Test stopped")
 	}
 	shortURL := string(shortURLBytes)
 	parts := strings.Split(strings.TrimRight(shortURL, "/"), "/")

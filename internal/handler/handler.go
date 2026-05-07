@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/IgorNB/shortener/internal/config/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -31,7 +32,7 @@ func New(svc URLService, baseURL string) http.Handler {
 
 	r := chi.NewRouter()
 
-	r.Use(middleware.Recoverer)
+	r.Use(logger.Logging, middleware.Recoverer)
 
 	r.NotFound(h.badRequestHandler)
 	r.MethodNotAllowed(h.badRequestHandler)

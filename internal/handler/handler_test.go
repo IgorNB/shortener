@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/IgorNB/shortener/internal/config"
+	"github.com/IgorNB/shortener/internal/config/logger"
 	"github.com/IgorNB/shortener/internal/handler/mocks"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,6 +22,7 @@ const (
 
 func TestHandler(t *testing.T) {
 	config.Parse()
+	logger.Init(config.LogLevel)
 	tests := []struct {
 		name        string
 		method      string
@@ -112,6 +114,7 @@ func TestHandler(t *testing.T) {
 
 func TestGetExistingURL(t *testing.T) {
 	config.Parse()
+	logger.Init(config.LogLevel)
 	const (
 		origURL = "http://example.com"
 		shortID = "EwHXdJfB"
