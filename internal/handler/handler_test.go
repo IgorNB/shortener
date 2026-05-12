@@ -4,6 +4,7 @@ package handler
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -22,18 +23,41 @@ const (
 	methodGetOrigURL  = "GetOrigURL"
 )
 
+func gzipString(s string) *bytes.Buffer {
+	var b bytes.Buffer
+	gz := gzip.NewWriter(&b)
+	_, _ = gz.Write([]byte(s))
+	_ = gz.Close()
+	return &b
+}
+
+func readGzipBody(t *testing.T, r io.Reader) string {
+	gr, err := gzip.NewReader(r)
+	assert.NoError(t, err)
+	defer gr.Close()
+
+	data, err := io.ReadAll(gr)
+	assert.NoError(t, err)
+
+	return string(data)
+}
+
 func TestHandler(t *testing.T) {
 	config.Parse()
 	logger.Init(config.LogLevel)
+
 	tests := []struct {
-		name        string
-		method      string
-		path        string
-		contentType string
-		body        string
-		setupMock   func(m *mocks.URLService)
-		wantStatus  int
-		wantBody    string
+		name                string
+		method              string
+		path                string
+		contentType         string
+		contentEncoding     string
+		acceptEncoding      string
+		body                string
+		setupMock           func(m *mocks.URLService)
+		wantStatus          int
+		wantBody            string
+		wantContentEncoding string
 	}{
 		{
 			name:        "POST success",
@@ -123,6 +147,33 @@ func TestHandler(t *testing.T) {
 			body:        "",
 			wantStatus:  http.StatusBadRequest,
 		},
+		{
+			name:            "POST success gzip request",
+			method:          http.MethodPost,
+			path:            "/",
+			contentType:     "text/plain",
+			contentEncoding: "gzip",
+			body:            "http://example.com",
+			setupMock: func(m *mocks.URLService) {
+				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   config.BaseURL + "EwHXdJfB",
+		},
+		{
+			name:           "POST /api/shorten gzip response",
+			method:         http.MethodPost,
+			path:           "/api/shorten",
+			contentType:    "application/json",
+			acceptEncoding: "gzip",
+			body:           `{"url":"http://example.com"}`,
+			setupMock: func(m *mocks.URLService) {
+				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+			},
+			wantStatus:          http.StatusCreated,
+			wantBody:            `{"Result":"` + config.BaseURL + `EwHXdJfB"}`,
+			wantContentEncoding: "gzip",
+		},
 	}
 
 	for _, tt := range tests {
@@ -132,10 +183,26 @@ func TestHandler(t *testing.T) {
 				tt.setupMock(svc)
 			}
 
-			req := httptest.NewRequest(tt.method, tt.path, bytes.NewBufferString(tt.body))
+			var body io.Reader = bytes.NewBufferString(tt.body)
+
+			if tt.contentEncoding == "gzip" {
+				body = gzipString(tt.body)
+			}
+
+			req := httptest.NewRequest(tt.method, tt.path, body)
+
 			if tt.contentType != "" {
 				req.Header.Set("Content-Type", tt.contentType)
 			}
+
+			if tt.contentEncoding != "" {
+				req.Header.Set("Content-Encoding", tt.contentEncoding)
+			}
+
+			if tt.acceptEncoding != "" {
+				req.Header.Set("Accept-Encoding", tt.acceptEncoding)
+			}
+
 			rr := httptest.NewRecorder()
 
 			New(svc, config.BaseURL).ServeHTTP(rr, req)
@@ -144,11 +211,22 @@ func TestHandler(t *testing.T) {
 			defer res.Body.Close()
 
 			assert.Equal(t, tt.wantStatus, res.StatusCode)
+			assert.Equal(t, tt.wantContentEncoding, res.Header.Get("Content-Encoding"))
+
 			if tt.wantBody != "" {
-				body, err := io.ReadAll(res.Body)
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantBody, string(body))
+				var responseBody string
+
+				if res.Header.Get("Content-Encoding") == "gzip" {
+					responseBody = readGzipBody(t, res.Body)
+				} else {
+					bodyBytes, err := io.ReadAll(res.Body)
+					assert.NoError(t, err)
+					responseBody = string(bodyBytes)
+				}
+
+				assert.Equal(t, tt.wantBody, responseBody)
 			}
+
 			svc.AssertExpectations(t)
 		})
 	}

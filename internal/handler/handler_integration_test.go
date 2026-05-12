@@ -17,23 +17,26 @@ import (
 )
 
 type Step struct {
-	method      string
-	relativeUrl string
-	contentType string
-	body        string
+	method          string
+	relativeUrl     string
+	contentType     string
+	contentEncoding string
+	acceptEncoding  string
+	body            string
 }
 
 type TestCase struct {
-	name         string
-	before       []Step
-	step         Step
-	assertStatus int
-	assertBody   func(body string)
+	name                string
+	before              []Step
+	step                Step
+	assertStatus        int
+	assertBody          func(body string)
+	assertContentEncode string
 }
 
 func TestIntegrationHandler(t *testing.T) {
 	config.Parse()
-	// Success cases first, then failures
+
 	tests := []TestCase{
 		{
 			name:   "POST success",
@@ -70,7 +73,6 @@ func TestIntegrationHandler(t *testing.T) {
 				assert.NotNil(t, body)
 			},
 		},
-		// Failure cases
 		{
 			name: "POST failure - no content-type",
 			step: Step{
@@ -159,6 +161,35 @@ func TestIntegrationHandler(t *testing.T) {
 			assertStatus: http.StatusBadRequest,
 			assertBody:   nil,
 		},
+		{
+			name: "POST success gzip request",
+			step: Step{
+				method:          http.MethodPost,
+				relativeUrl:     "/",
+				contentType:     "text/plain",
+				contentEncoding: "gzip",
+				body:            "http://example.com",
+			},
+			assertStatus: http.StatusCreated,
+			assertBody: func(body string) {
+				assert.NotNil(t, body)
+			},
+		},
+		{
+			name: "POST /api/shorten gzip response",
+			step: Step{
+				method:         http.MethodPost,
+				relativeUrl:    "/api/shorten",
+				contentType:    "application/json",
+				acceptEncoding: "gzip",
+				body:           `{"url":"http://example.com"}`,
+			},
+			assertStatus:        http.StatusCreated,
+			assertContentEncode: "gzip",
+			assertBody: func(body string) {
+				assert.NotNil(t, body)
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -167,44 +198,80 @@ func TestIntegrationHandler(t *testing.T) {
 			svc := service.New(repo)
 			handler := New(svc, config.BaseURL)
 
-			// подготовка данных
 			for _, b := range test.before {
+				var beforeBody io.Reader = bytes.NewBufferString(b.body)
+
+				if b.contentEncoding == "gzip" {
+					beforeBody = gzipString(b.body)
+				}
+
 				req := httptest.NewRequest(
 					b.method,
 					b.relativeUrl,
-					bytes.NewBufferString(b.body),
+					beforeBody,
 				)
 
 				if b.contentType != "" {
 					req.Header.Set("Content-Type", b.contentType)
 				}
 
+				if b.contentEncoding != "" {
+					req.Header.Set("Content-Encoding", b.contentEncoding)
+				}
+
+				if b.acceptEncoding != "" {
+					req.Header.Set("Accept-Encoding", b.acceptEncoding)
+				}
+
 				w := httptest.NewRecorder()
 				handler.ServeHTTP(w, req)
 			}
 
-			// основной шаг
+			var stepBody io.Reader = bytes.NewBufferString(test.step.body)
+
+			if test.step.contentEncoding == "gzip" {
+				stepBody = gzipString(test.step.body)
+			}
+
 			req := httptest.NewRequest(
 				test.step.method,
 				test.step.relativeUrl,
-				bytes.NewBufferString(test.step.body),
+				stepBody,
 			)
 
 			if test.step.contentType != "" {
 				req.Header.Set("Content-Type", test.step.contentType)
 			}
 
+			if test.step.contentEncoding != "" {
+				req.Header.Set("Content-Encoding", test.step.contentEncoding)
+			}
+
+			if test.step.acceptEncoding != "" {
+				req.Header.Set("Accept-Encoding", test.step.acceptEncoding)
+			}
+
 			w := httptest.NewRecorder()
 			handler.ServeHTTP(w, req)
 
 			resp := w.Result()
+			defer resp.Body.Close()
 
 			assert.Equal(t, test.assertStatus, resp.StatusCode)
+			assert.Equal(t, test.assertContentEncode, resp.Header.Get("Content-Encoding"))
 
 			if test.assertBody != nil {
-				buf := new(bytes.Buffer)
-				_, _ = buf.ReadFrom(resp.Body)
-				test.assertBody(buf.String())
+				var body string
+
+				if resp.Header.Get("Content-Encoding") == "gzip" {
+					body = readGzipBody(t, resp.Body)
+				} else {
+					buf := new(bytes.Buffer)
+					_, _ = buf.ReadFrom(resp.Body)
+					body = buf.String()
+				}
+
+				test.assertBody(body)
 			}
 		})
 	}
@@ -274,7 +341,6 @@ func TestIntegrationGetExistingURLViaAPI(t *testing.T) {
 	}
 	assert.NotEmpty(t, rs.Result)
 	shortURL := rs.Result
-
 	parts := strings.Split(strings.TrimRight(shortURL, "/"), "/")
 	shortID := parts[len(parts)-1]
 

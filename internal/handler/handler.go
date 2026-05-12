@@ -8,15 +8,13 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/IgorNB/shortener/internal/config"
+	"github.com/IgorNB/shortener/internal/config/compress"
 	"github.com/IgorNB/shortener/internal/config/logger"
 	"github.com/IgorNB/shortener/internal/model"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
-
-const contentTypeTextPlain = "text/plain"
-
-const contentTypeJson = "application/json"
 
 //go:generate mockery --name URLService --output ./mocks --outpkg mocks
 type URLService interface {
@@ -37,7 +35,7 @@ func New(svc URLService, baseURL string) http.Handler {
 
 	r := chi.NewRouter()
 
-	r.Use(logger.Logging, middleware.Recoverer)
+	r.Use(compress.Compress, logger.Logging, middleware.Recoverer)
 
 	r.NotFound(h.badRequestHandler)
 	r.MethodNotAllowed(h.badRequestHandler)
@@ -55,8 +53,8 @@ func (h *URLHandler) badRequestHandler(rw http.ResponseWriter, rq *http.Request)
 }
 
 func (h *URLHandler) handlePost(rw http.ResponseWriter, rq *http.Request) {
-	mediaType, _, _ := mime.ParseMediaType(rq.Header.Get("Content-Type"))
-	if mediaType != contentTypeTextPlain {
+	mediaType, _, _ := mime.ParseMediaType(rq.Header.Get(config.ContentType))
+	if mediaType != config.ContentTypeTextPlain {
 		http.Error(rw, "invalid content type", http.StatusBadRequest)
 		return
 	}
@@ -85,14 +83,14 @@ func (h *URLHandler) handlePost(rw http.ResponseWriter, rq *http.Request) {
 		return
 	}
 
-	rw.Header().Set("Content-Type", contentTypeTextPlain)
+	rw.Header().Set(config.ContentType, config.ContentTypeTextPlain)
 	rw.WriteHeader(http.StatusCreated)
 	_, _ = rw.Write([]byte(resURL))
 }
 
 func (h *URLHandler) handleJsonPost(rw http.ResponseWriter, rq *http.Request) {
-	mediaType, _, _ := mime.ParseMediaType(rq.Header.Get("Content-Type"))
-	if mediaType != contentTypeJson {
+	mediaType, _, _ := mime.ParseMediaType(rq.Header.Get(config.ContentType))
+	if mediaType != config.ContentTypeJson {
 		http.Error(rw, "invalid content type", http.StatusBadRequest)
 		return
 	}
@@ -127,7 +125,7 @@ func (h *URLHandler) handleJsonPost(rw http.ResponseWriter, rq *http.Request) {
 		return
 	}
 
-	rw.Header().Set("Content-Type", contentTypeJson)
+	rw.Header().Set(config.ContentType, config.ContentTypeJson)
 	rw.WriteHeader(http.StatusCreated)
 	_, _ = rw.Write(marshal)
 }

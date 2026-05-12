@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+const ContentType = "Content-Type"
+
+const ContentTypeTextPlain = "text/plain"
+
+const ContentTypeTextHtml = "text/html"
+
+const ContentTypeJson = "application/json"
+
 var (
 	ServerAddress string
 	BaseURL       string
