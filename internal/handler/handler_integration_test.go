@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -35,7 +36,7 @@ type TestCase struct {
 }
 
 func TestIntegrationHandler(t *testing.T) {
-	config.Parse()
+	cfg := config.New(os.Args[1:])
 
 	tests := []TestCase{
 		{
@@ -45,7 +46,7 @@ func TestIntegrationHandler(t *testing.T) {
 				method:      http.MethodPost,
 				relativeUrl: "/",
 				contentType: "text/plain",
-				body:        "http://example.com",
+				body:        "http://example1.com",
 			},
 			assertStatus: http.StatusCreated,
 			assertBody: func(body string) {
@@ -59,14 +60,14 @@ func TestIntegrationHandler(t *testing.T) {
 					method:      http.MethodPost,
 					relativeUrl: "/",
 					contentType: "text/plain",
-					body:        "http://example.com",
+					body:        "http://example2.com",
 				},
 			},
 			step: Step{
 				method:      http.MethodPost,
 				relativeUrl: "/",
 				contentType: "text/plain",
-				body:        "http://example.com",
+				body:        "http://example2.com",
 			},
 			assertStatus: http.StatusCreated,
 			assertBody: func(body string) {
@@ -79,7 +80,7 @@ func TestIntegrationHandler(t *testing.T) {
 				method:      http.MethodPost,
 				relativeUrl: "/",
 				contentType: "",
-				body:        "http://example.com",
+				body:        "http://example3.com",
 			},
 			assertStatus: http.StatusBadRequest,
 			assertBody:   nil,
@@ -111,7 +112,7 @@ func TestIntegrationHandler(t *testing.T) {
 				method:      http.MethodPost,
 				relativeUrl: "/api/shorten",
 				contentType: "application/json",
-				body:        `{"url":"http://example.com"}`,
+				body:        `{"url":"http://example4.com"}`,
 			},
 			assertStatus: http.StatusCreated,
 			assertBody: func(body string) {
@@ -125,14 +126,14 @@ func TestIntegrationHandler(t *testing.T) {
 					method:      http.MethodPost,
 					relativeUrl: "/api/shorten",
 					contentType: "application/json",
-					body:        `{"url":"http://example.com"}`,
+					body:        `{"url":"http://example5.com"}`,
 				},
 			},
 			step: Step{
 				method:      http.MethodPost,
 				relativeUrl: "/api/shorten",
 				contentType: "application/json",
-				body:        `{"url":"http://example.com"}`,
+				body:        `{"url":"http://example5.com"}`,
 			},
 			assertStatus: http.StatusCreated,
 			assertBody: func(body string) {
@@ -145,7 +146,7 @@ func TestIntegrationHandler(t *testing.T) {
 				method:      http.MethodPost,
 				relativeUrl: "/api/shorten",
 				contentType: "",
-				body:        `{"url":"http://example.com"}`,
+				body:        `{"url":"http://example6.com"}`,
 			},
 			assertStatus: http.StatusBadRequest,
 			assertBody:   nil,
@@ -168,7 +169,7 @@ func TestIntegrationHandler(t *testing.T) {
 				relativeUrl:     "/",
 				contentType:     "text/plain",
 				contentEncoding: "gzip",
-				body:            "http://example.com",
+				body:            "http://example7.com",
 			},
 			assertStatus: http.StatusCreated,
 			assertBody: func(body string) {
@@ -182,7 +183,7 @@ func TestIntegrationHandler(t *testing.T) {
 				relativeUrl:    "/api/shorten",
 				contentType:    "application/json",
 				acceptEncoding: "gzip",
-				body:           `{"url":"http://example.com"}`,
+				body:           `{"url":"http://example8.com"}`,
 			},
 			assertStatus:        http.StatusCreated,
 			assertContentEncode: "gzip",
@@ -194,9 +195,9 @@ func TestIntegrationHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			repo := repository.New()
+			repo := repository.New(cfg.FileStoragePath)
 			svc := service.New(repo)
-			handler := New(svc, config.BaseURL)
+			handler := New(svc, cfg.BaseURL)
 
 			for _, b := range test.before {
 				var beforeBody io.Reader = bytes.NewBufferString(b.body)
@@ -278,13 +279,13 @@ func TestIntegrationHandler(t *testing.T) {
 }
 
 func TestIntegrationGetExistingURL(t *testing.T) {
-	config.Parse()
-	logger.Init(config.LogLevel)
-	repo := repository.New()
+	cfg := config.New(os.Args[1:])
+	logger.Init(cfg.LogLevel)
+	repo := repository.New(cfg.FileStoragePath)
 	svc := service.New(repo)
-	handler := New(svc, config.BaseURL)
+	handler := New(svc, cfg.BaseURL)
 
-	postReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("http://example.com"))
+	postReq := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString("http://example9.com"))
 	postReq.Header.Set("Content-Type", "text/plain")
 	postRec := httptest.NewRecorder()
 	handler.ServeHTTP(postRec, postReq)
@@ -310,17 +311,17 @@ func TestIntegrationGetExistingURL(t *testing.T) {
 	defer getResp.Body.Close()
 
 	assert.Equal(t, http.StatusTemporaryRedirect, getResp.StatusCode)
-	assert.Equal(t, "http://example.com", getResp.Header.Get("Location"))
+	assert.Equal(t, "http://example9.com", getResp.Header.Get("Location"))
 }
 
 func TestIntegrationGetExistingURLViaAPI(t *testing.T) {
-	config.Parse()
-	logger.Init(config.LogLevel)
-	repo := repository.New()
+	cfg := config.New(os.Args[1:])
+	logger.Init(cfg.LogLevel)
+	repo := repository.New(cfg.FileStoragePath)
 	svc := service.New(repo)
-	handler := New(svc, config.BaseURL)
+	handler := New(svc, cfg.BaseURL)
 
-	origURL := "http://example.com"
+	origURL := "http://example10.com"
 	reqBody := `{"url":"` + origURL + `"}`
 	postReq := httptest.NewRequest(http.MethodPost, "/api/shorten", bytes.NewBufferString(reqBody))
 	postReq.Header.Set("Content-Type", "application/json")

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -43,8 +44,8 @@ func readGzipBody(t *testing.T, r io.Reader) string {
 }
 
 func TestHandler(t *testing.T) {
-	config.Parse()
-	logger.Init(config.LogLevel)
+	cfg := config.New(os.Args[1:])
+	logger.Init(cfg.LogLevel)
 
 	tests := []struct {
 		name                string
@@ -64,30 +65,30 @@ func TestHandler(t *testing.T) {
 			method:      http.MethodPost,
 			path:        "/",
 			contentType: "text/plain",
-			body:        "http://example.com",
+			body:        "http://example1.com",
 			setupMock: func(m *mocks.URLService) {
-				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+				m.On(methodGetOrCreate, "http://example1.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   config.BaseURL + "EwHXdJfB",
+			wantBody:   cfg.BaseURL + "EwHXdJfB",
 		},
 		{
 			name:        "POST success (duplicate)",
 			method:      http.MethodPost,
 			path:        "/",
 			contentType: "text/plain",
-			body:        "http://example.com",
+			body:        "http://example2.com",
 			setupMock: func(m *mocks.URLService) {
-				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+				m.On(methodGetOrCreate, "http://example2.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   config.BaseURL + "EwHXdJfB",
+			wantBody:   cfg.BaseURL + "EwHXdJfB",
 		},
 		{
 			name:       "POST failure - no content-type",
 			method:     http.MethodPost,
 			path:       "/",
-			body:       "http://example.com",
+			body:       "http://example3.com",
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -112,31 +113,31 @@ func TestHandler(t *testing.T) {
 			method:      http.MethodPost,
 			path:        "/api/shorten",
 			contentType: "application/json",
-			body:        `{"url":"http://example.com"}`,
+			body:        `{"url":"http://example4.com"}`,
 			setupMock: func(m *mocks.URLService) {
-				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+				m.On(methodGetOrCreate, "http://example4.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   `{"Result":"` + config.BaseURL + `EwHXdJfB"}`,
+			wantBody:   `{"Result":"` + cfg.BaseURL + `EwHXdJfB"}`,
 		},
 		{
 			name:        "POST /api/shorten success (duplicate)",
 			method:      http.MethodPost,
 			path:        "/api/shorten",
 			contentType: "application/json",
-			body:        `{"url":"http://example.com"}`,
+			body:        `{"url":"http://example5.com"}`,
 			setupMock: func(m *mocks.URLService) {
-				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+				m.On(methodGetOrCreate, "http://example5.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   `{"Result":"` + config.BaseURL + `EwHXdJfB"}`,
+			wantBody:   `{"Result":"` + cfg.BaseURL + `EwHXdJfB"}`,
 		},
 		{
 			name:        "POST /api/shorten failure - no content-type",
 			method:      http.MethodPost,
 			path:        "/api/shorten",
 			contentType: "",
-			body:        `{"url":"http://example.com"}`,
+			body:        `{"url":"http://example6.com"}`,
 			wantStatus:  http.StatusBadRequest,
 		},
 		{
@@ -153,12 +154,12 @@ func TestHandler(t *testing.T) {
 			path:            "/",
 			contentType:     "text/plain",
 			contentEncoding: "gzip",
-			body:            "http://example.com",
+			body:            "http://example7.com",
 			setupMock: func(m *mocks.URLService) {
-				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+				m.On(methodGetOrCreate, "http://example7.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   config.BaseURL + "EwHXdJfB",
+			wantBody:   cfg.BaseURL + "EwHXdJfB",
 		},
 		{
 			name:           "POST /api/shorten gzip response",
@@ -166,12 +167,12 @@ func TestHandler(t *testing.T) {
 			path:           "/api/shorten",
 			contentType:    "application/json",
 			acceptEncoding: "gzip",
-			body:           `{"url":"http://example.com"}`,
+			body:           `{"url":"http://example8.com"}`,
 			setupMock: func(m *mocks.URLService) {
-				m.On(methodGetOrCreate, "http://example.com").Return("EwHXdJfB").Once()
+				m.On(methodGetOrCreate, "http://example8.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus:          http.StatusCreated,
-			wantBody:            `{"Result":"` + config.BaseURL + `EwHXdJfB"}`,
+			wantBody:            `{"Result":"` + cfg.BaseURL + `EwHXdJfB"}`,
 			wantContentEncoding: "gzip",
 		},
 	}
@@ -205,7 +206,7 @@ func TestHandler(t *testing.T) {
 
 			rr := httptest.NewRecorder()
 
-			New(svc, config.BaseURL).ServeHTTP(rr, req)
+			New(svc, cfg.BaseURL).ServeHTTP(rr, req)
 
 			res := rr.Result()
 			defer res.Body.Close()
@@ -233,10 +234,10 @@ func TestHandler(t *testing.T) {
 }
 
 func TestGetExistingURL(t *testing.T) {
-	config.Parse()
-	logger.Init(config.LogLevel)
+	cfg := config.New(os.Args[1:])
+	logger.Init(cfg.LogLevel)
 	const (
-		origURL = "http://example.com"
+		origURL = "http://example9.com"
 		shortID = "EwHXdJfB"
 	)
 
@@ -246,7 +247,7 @@ func TestGetExistingURL(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/"+shortID, nil)
 	rr := httptest.NewRecorder()
 
-	New(svc, config.BaseURL).ServeHTTP(rr, req)
+	New(svc, cfg.BaseURL).ServeHTTP(rr, req)
 
 	res := rr.Result()
 	defer res.Body.Close()
@@ -257,10 +258,10 @@ func TestGetExistingURL(t *testing.T) {
 }
 
 func TestGetExistingURLViaAPI(t *testing.T) {
-	config.Parse()
-	logger.Init(config.LogLevel)
+	cfg := config.New(os.Args[1:])
+	logger.Init(cfg.LogLevel)
 	const (
-		origURL = "http://example.com"
+		origURL = "http://example10.com"
 		shortID = "EwHXdJfB"
 	)
 
@@ -271,7 +272,7 @@ func TestGetExistingURLViaAPI(t *testing.T) {
 	postReq := httptest.NewRequest(http.MethodPost, "/api/shorten", bytes.NewBufferString(reqBody))
 	postReq.Header.Set("Content-Type", "application/json")
 	postRec := httptest.NewRecorder()
-	New(svc, config.BaseURL).ServeHTTP(postRec, postReq)
+	New(svc, cfg.BaseURL).ServeHTTP(postRec, postReq)
 
 	postResp := postRec.Result()
 	defer postResp.Body.Close()
@@ -293,7 +294,7 @@ func TestGetExistingURLViaAPI(t *testing.T) {
 
 	getReq := httptest.NewRequest(http.MethodGet, "/"+actualShortID, nil)
 	getRec := httptest.NewRecorder()
-	New(svc, config.BaseURL).ServeHTTP(getRec, getReq)
+	New(svc, cfg.BaseURL).ServeHTTP(getRec, getReq)
 
 	getResp := getRec.Result()
 	defer getResp.Body.Close()

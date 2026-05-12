@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/IgorNB/shortener/internal/config"
 	"github.com/IgorNB/shortener/internal/config/logger"
@@ -11,14 +12,14 @@ import (
 )
 
 func main() {
-	config.Parse()
-	logger.Init(config.LogLevel)
+	cfg := config.New(os.Args[1:])
+	logger.Init(cfg.LogLevel)
 
-	repo := repository.New()
+	repo := repository.New(cfg.FileStoragePath)
 	svc := service.New(repo)
-	h := handler.New(svc, config.BaseURL)
+	h := handler.New(svc, cfg.BaseURL)
 
-	if err := http.ListenAndServe(config.ServerAddress, h); err != nil {
+	if err := http.ListenAndServe(cfg.ServerAddress, h); err != nil {
 		logger.Log.Fatal().Err(err).Msg("server stopped")
 	}
 }

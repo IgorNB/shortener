@@ -11,7 +11,7 @@ import (
 	"github.com/IgorNB/shortener/internal/config"
 	"github.com/IgorNB/shortener/internal/config/compress"
 	"github.com/IgorNB/shortener/internal/config/logger"
-	"github.com/IgorNB/shortener/internal/model"
+	"github.com/IgorNB/shortener/internal/model/dto"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -95,7 +95,7 @@ func (h *URLHandler) handleJsonPost(rw http.ResponseWriter, rq *http.Request) {
 		return
 	}
 
-	var shortenRq model.ShortenRq
+	var shortenRq dto.ShortenRq
 	if err := json.NewDecoder(rq.Body).Decode(&shortenRq); err != nil {
 		http.Error(rw, "invalid body", http.StatusBadRequest)
 		return
@@ -119,7 +119,7 @@ func (h *URLHandler) handleJsonPost(rw http.ResponseWriter, rq *http.Request) {
 		return
 	}
 
-	marshal, err := json.Marshal(model.ShortenRs{Result: resURL})
+	marshal, err := json.Marshal(dto.ShortenRs{Result: resURL})
 	if err != nil {
 		http.Error(rw, "failed to shorten url", http.StatusBadRequest)
 		return

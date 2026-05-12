@@ -9,7 +9,7 @@ import (
 type Repository interface {
 	GetShortByOrig(orig string) string
 	GetOrigByShort(short string) string
-	SaveIfNotTaken(orig, short string) (string, error)
+	SaveIfNotTaken(orig, short string) error
 }
 
 type URLService struct {
@@ -21,8 +21,12 @@ func New(repo Repository) *URLService {
 }
 
 func (s *URLService) GetOrCreate(origURL string) string {
+	if short := s.repo.GetShortByOrig(origURL); short != "" {
+		return short
+	}
 	for range 10 {
-		short, err := s.repo.SaveIfNotTaken(origURL, randomString(8))
+		short := randomString(8)
+		err := s.repo.SaveIfNotTaken(origURL, short)
 		if err != nil {
 			continue
 		}
