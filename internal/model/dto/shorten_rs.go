@@ -1,5 +1,5 @@
 package dto
 
 type ShortenRs struct {
-	Result string
+	Result string `json:"result"`
 }

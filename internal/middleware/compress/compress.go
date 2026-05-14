@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/IgorNB/shortener/internal/config"
-	"github.com/IgorNB/shortener/internal/config/logger"
+	"github.com/IgorNB/shortener/internal/middleware/logger"
 )
 
 const ContentEncoding = "Content-Encoding"

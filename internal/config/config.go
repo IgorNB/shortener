@@ -29,6 +29,7 @@ func New(args []string) *Config {
 	fs.StringVar(&cfg.BaseURL, "b", "http://localhost:8080/", "Base URL for short links")
 	fs.StringVar(&cfg.LogLevel, "log_level", "INFO", "log level")
 	fs.StringVar(&cfg.FileStoragePath, "f", "shortener_db.txt", "Shortener DB file path. It will be created on app start if not exists")
+	_ = fs.Parse(args)
 	if env, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		cfg.ServerAddress = env
 	}
@@ -41,9 +42,6 @@ func New(args []string) *Config {
 	if env, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
 		cfg.FileStoragePath = env
 	}
-	// Парсим только те аргументы, которые передали в функцию
-	_ = fs.Parse(args)
-
 	if cfg.BaseURL != "" {
 		cfg.BaseURL = strings.TrimSuffix(cfg.BaseURL, "/") + "/"
 	}

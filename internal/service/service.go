@@ -21,10 +21,10 @@ func New(repo Repository) *URLService {
 }
 
 func (s *URLService) GetOrCreate(origURL string) string {
-	if short := s.repo.GetShortByOrig(origURL); short != "" {
-		return short
-	}
 	for range 10 {
+		if short := s.repo.GetShortByOrig(origURL); short != "" {
+			return short
+		}
 		short := randomString(8)
 		err := s.repo.SaveIfNotTaken(origURL, short)
 		if err != nil {

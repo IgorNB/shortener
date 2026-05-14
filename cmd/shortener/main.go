@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/IgorNB/shortener/internal/config"
-	"github.com/IgorNB/shortener/internal/config/logger"
 	"github.com/IgorNB/shortener/internal/handler"
+	"github.com/IgorNB/shortener/internal/middleware/logger"
 	"github.com/IgorNB/shortener/internal/repository"
 	"github.com/IgorNB/shortener/internal/service"
 )

@@ -14,8 +14,8 @@ import (
 	"testing"
 
 	"github.com/IgorNB/shortener/internal/config"
-	"github.com/IgorNB/shortener/internal/config/logger"
 	"github.com/IgorNB/shortener/internal/handler/mocks"
+	"github.com/IgorNB/shortener/internal/middleware/logger"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -118,7 +118,7 @@ func TestHandler(t *testing.T) {
 				m.On(methodGetOrCreate, "http://example4.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   `{"Result":"` + cfg.BaseURL + `EwHXdJfB"}`,
+			wantBody:   `{"result":"` + cfg.BaseURL + `EwHXdJfB"}`,
 		},
 		{
 			name:        "POST /api/shorten success (duplicate)",
@@ -130,7 +130,7 @@ func TestHandler(t *testing.T) {
 				m.On(methodGetOrCreate, "http://example5.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus: http.StatusCreated,
-			wantBody:   `{"Result":"` + cfg.BaseURL + `EwHXdJfB"}`,
+			wantBody:   `{"result":"` + cfg.BaseURL + `EwHXdJfB"}`,
 		},
 		{
 			name:        "POST /api/shorten failure - no content-type",
@@ -172,7 +172,7 @@ func TestHandler(t *testing.T) {
 				m.On(methodGetOrCreate, "http://example8.com").Return("EwHXdJfB").Once()
 			},
 			wantStatus:          http.StatusCreated,
-			wantBody:            `{"Result":"` + cfg.BaseURL + `EwHXdJfB"}`,
+			wantBody:            `{"result":"` + cfg.BaseURL + `EwHXdJfB"}`,
 			wantContentEncoding: "gzip",
 		},
 	}

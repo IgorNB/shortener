@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/IgorNB/shortener/internal/config"
-	"github.com/IgorNB/shortener/internal/config/logger"
+	"github.com/IgorNB/shortener/internal/middleware/logger"
 	"github.com/IgorNB/shortener/internal/repository"
 	"github.com/IgorNB/shortener/internal/service"
 	"github.com/stretchr/testify/assert"

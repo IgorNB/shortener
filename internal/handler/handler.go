@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/IgorNB/shortener/internal/config"
-	"github.com/IgorNB/shortener/internal/config/compress"
-	"github.com/IgorNB/shortener/internal/config/logger"
+	middleware2 "github.com/IgorNB/shortener/internal/middleware/compress"
+	"github.com/IgorNB/shortener/internal/middleware/logger"
 	"github.com/IgorNB/shortener/internal/model/dto"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -35,7 +35,7 @@ func New(svc URLService, baseURL string) http.Handler {
 
 	r := chi.NewRouter()
 
-	r.Use(compress.Compress, logger.Logging, middleware.Recoverer)
+	r.Use(middleware2.Compress, logger.Logging, middleware.Recoverer)
 
 	r.NotFound(h.badRequestHandler)
 	r.MethodNotAllowed(h.badRequestHandler)

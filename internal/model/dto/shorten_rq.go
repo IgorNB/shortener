@@ -1,5 +1,5 @@
 package dto
 
 type ShortenRq struct {
-	Url string
+	Url string `json:"url"`
 }
